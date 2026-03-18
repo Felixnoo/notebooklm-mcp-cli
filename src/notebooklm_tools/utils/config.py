@@ -320,11 +320,18 @@ class AuthConfig(BaseModel):
     default_profile: str = Field(default="default", description="Default profile name")
 
 
+class CompanyConfig(BaseModel):
+    """Company configuration."""
+
+    id: str = Field(default="", description="Company NotebookLM ID")
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
     output: OutputConfig = Field(default_factory=OutputConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
+    company: CompanyConfig = Field(default_factory=CompanyConfig)
 
 
 def load_config() -> Config:
@@ -380,6 +387,10 @@ def _config_to_toml(config: Config) -> str:
     lines.append("[auth]")
     lines.append(f'browser = "{config.auth.browser}"')
     lines.append(f'default_profile = "{config.auth.default_profile}"')
+    lines.append("")
+    
+    lines.append("[company]")
+    lines.append(f'id = "{config.company.id}"')
     lines.append("")
     
     return "\n".join(lines)

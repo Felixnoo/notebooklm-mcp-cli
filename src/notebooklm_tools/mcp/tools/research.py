@@ -41,7 +41,7 @@ def research_start(
 
 @logged_tool()
 def research_status(
-    notebook_id: str,
+    notebook_id: str | None = None,
     poll_interval: int = 30,
     max_wait: int = 300,
     compact: bool = True,
@@ -51,7 +51,7 @@ def research_status(
     """Poll research progress. Blocks until complete or timeout.
 
     Args:
-        notebook_id: Notebook UUID
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
         poll_interval: Seconds between polls (default: 30)
         max_wait: Max seconds to wait (default: 300, 0=single poll)
         compact: If True (default), truncate report and limit sources shown to save tokens.
@@ -62,6 +62,14 @@ def research_status(
     """
     try:
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
+        
         result = research_service.poll_research(
             client, notebook_id,
             task_id=task_id,
@@ -77,23 +85,36 @@ def research_status(
 
 @logged_tool()
 def research_import(
-    notebook_id: str,
     task_id: str,
     source_indices: list[int] | None = None,
+    notebook_id: str | None = None,
 ) -> dict[str, Any]:
     """Import discovered sources into notebook.
 
     Call after research_status shows status="completed".
 
     Args:
-        notebook_id: Notebook UUID
-        task_id: Research task ID
-        source_indices: Source indices to import (default: all)
+        task_id: Research task ID from research_start
+        source_indices: List of source indices to import (default: all)
+        notebook_id: Notebook UUID to import into (default: uses saved default notebook ID)
+
+    Returns:
+        Dict with operation status and imported sources
     """
     try:
         client = get_client()
-        result = research_service.import_research(
-            client, notebook_id, task_id,
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
+        
+        result = research_service.import_sources(
+            client,
+            notebook_id,
+            task_id,
             source_indices=source_indices,
         )
         return {"status": "success", **result}

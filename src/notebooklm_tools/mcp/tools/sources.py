@@ -8,8 +8,8 @@ from ...services import sources as sources_service, ServiceError
 
 @logged_tool()
 def source_add(
-    notebook_id: str,
     source_type: str,
+    notebook_id: str | None = None,
     url: str | None = None,
     urls: list[str] | None = None,
     text: str | None = None,
@@ -25,7 +25,7 @@ def source_add(
     Supports: url, text, drive, file
 
     Args:
-        notebook_id: Notebook UUID
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
         source_type: Type of source to add:
             - url: Web page or YouTube URL
             - text: Pasted text content
@@ -49,6 +49,13 @@ def source_add(
     """
     try:
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
 
         # Bulk URL add: when urls list is provided
         if urls and source_type == "url":
@@ -74,16 +81,24 @@ def source_add(
 
 
 @logged_tool()
-def source_list_drive(notebook_id: str) -> dict[str, Any]:
+def source_list_drive(notebook_id: str | None = None) -> dict[str, Any]:
     """List sources with types and Drive freshness status.
 
     Use before source_sync_drive to identify stale sources.
 
     Args:
-        notebook_id: Notebook UUID
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
     """
     try:
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
+        
         result = sources_service.list_drive_sources(client, notebook_id)
         return {"status": "success", "notebook_id": notebook_id, **result}
     except ServiceError as e:
@@ -126,16 +141,24 @@ def source_sync_drive(source_ids: list[str], confirm: bool = False) -> dict[str,
 
 
 @logged_tool()
-def source_rename(notebook_id: str, source_id: str, new_title: str) -> dict[str, Any]:
+def source_rename(source_id: str, new_title: str, notebook_id: str | None = None) -> dict[str, Any]:
     """Rename a source in a notebook.
 
     Args:
-        notebook_id: Notebook UUID containing the source
         source_id: Source UUID to rename
         new_title: New display title for the source
+        notebook_id: Notebook UUID containing the source (default: uses saved default notebook ID)
     """
     try:
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
+        
         result = sources_service.rename_source(client, notebook_id, source_id, new_title)
         return {"status": "success", **result}
     except ServiceError as e:

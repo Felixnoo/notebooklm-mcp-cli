@@ -9,7 +9,6 @@ from ...utils.config import get_default_language
 
 @logged_tool()
 def studio_create(
-    notebook_id: str,
     artifact_type: str,
     source_ids: list[str] | None = None,
     confirm: bool = False,
@@ -38,13 +37,14 @@ def studio_create(
     title: str = "Mind Map",
     # Data table options
     description: str = "",
+    # Notebook ID (last because it has a default)
+    notebook_id: str | None = None,
 ) -> dict[str, Any]:
     """Create any NotebookLM studio artifact. Unified creation tool.
 
     Supports: audio, video, infographic, slide_deck, report, flashcards, quiz, data_table, mind_map
 
     Args:
-        notebook_id: Notebook UUID
         artifact_type: Type of artifact to create:
             - audio: Audio Overview (podcast)
             - video: Video Overview
@@ -67,6 +67,7 @@ def studio_create(
         - flashcards: difficulty (easy|medium|hard)
         - quiz: question_count (int), difficulty (easy|medium|hard)
         - data_table: description (required)
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
         - mind_map: title
 
         Common options:
@@ -79,6 +80,13 @@ def studio_create(
     """
     if not language:
         language = get_default_language()
+    
+    # Use default notebook ID if not provided
+    from ._utils import get_default_notebook_id
+    if not notebook_id:
+        notebook_id = get_default_notebook_id()
+        if not notebook_id:
+            return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
 
     # Validate type early (before confirmation check)
     try:
@@ -149,7 +157,7 @@ def studio_create(
 
 @logged_tool()
 def studio_status(
-    notebook_id: str,
+    notebook_id: str | None = None,
     action: str = "status",
     artifact_id: str | None = None,
     new_title: str | None = None,
@@ -157,7 +165,7 @@ def studio_status(
     """Check studio content generation status and get URLs, or rename an artifact.
 
     Args:
-        notebook_id: Notebook UUID
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
         action: Action to perform:
             - status (default): List all artifacts with their status and URLs
             - rename: Rename an artifact (requires artifact_id and new_title)
@@ -184,6 +192,13 @@ def studio_status(
             return _get_studio_types()
 
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
 
         if action == "rename":
             result = studio_service.rename_artifact(client, artifact_id, new_title)
@@ -214,16 +229,16 @@ def studio_status(
 
 @logged_tool()
 def studio_delete(
-    notebook_id: str,
     artifact_id: str,
     confirm: bool = False,
+    notebook_id: str | None = None,
 ) -> dict[str, Any]:
     """Delete studio artifact. IRREVERSIBLE. Requires confirm=True.
 
     Args:
-        notebook_id: Notebook UUID
         artifact_id: Artifact UUID (from studio_status)
         confirm: Must be True after user approval
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
     """
     if not confirm:
         return {
@@ -235,12 +250,20 @@ def studio_delete(
 
     try:
         client = get_client()
-        studio_service.delete_artifact(client, artifact_id, notebook_id)
-        return {
-            "status": "success",
-            "message": f"Artifact {artifact_id} has been permanently deleted.",
-            "notebook_id": notebook_id,
-        }
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
+        
+        result = studio_service.delete_artifact(
+            client,
+            notebook_id,
+            artifact_id,
+        )
+        return {"status": "success", **result}
     except ServiceError as e:
         return {"status": "error", "error": e.user_message}
     except Exception as e:
@@ -249,10 +272,10 @@ def studio_delete(
 
 @logged_tool()
 def studio_revise(
-    notebook_id: str,
     artifact_id: str,
     slide_instructions: list,
     confirm: bool = False,
+    notebook_id: str | None = None,
 ) -> dict[str, Any]:
     """Revise individual slides in an existing slide deck. Creates a NEW artifact.
 
@@ -260,31 +283,35 @@ def studio_revise(
     Poll studio_status after calling to check when the new deck is ready.
 
     Args:
-        notebook_id: Notebook UUID
         artifact_id: UUID of the existing slide deck to revise (from studio_status)
         slide_instructions: List of revision instructions, each with:
             - slide: Slide number (1-based, slide 1 = first slide)
             - instruction: Text describing the desired change
             Example: [{"slide": 1, "instruction": "Make the title larger"}]
         confirm: Must be True after user approval
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
 
     Example:
         studio_revise(
-            notebook_id="abc",
             artifact_id="xyz",
             slide_instructions=[
                 {"slide": 1, "instruction": "Make the title larger"},
                 {"slide": 3, "instruction": "Remove the image"}
             ],
-            confirm=True
+            confirm=True,
+            notebook_id="abc"
         )
     """
     if not confirm:
+        # Use default notebook ID if not provided for preview
+        from ._utils import get_default_notebook_id
+        preview_notebook_id = notebook_id or get_default_notebook_id()
+        
         return {
             "status": "pending_confirmation",
             "message": "Please confirm before revising slide deck:",
             "settings": {
-                "notebook_id": notebook_id,
+                "notebook_id": preview_notebook_id,
                 "artifact_id": artifact_id,
                 "slides_to_revise": [
                     f"Slide {s.get('slide', '?')}: {s.get('instruction', '')}"
@@ -296,6 +323,14 @@ def studio_revise(
 
     try:
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
+        
         result = studio_service.revise_artifact(
             client, artifact_id, slide_instructions,
         )

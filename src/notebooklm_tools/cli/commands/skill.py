@@ -3,11 +3,12 @@
 import re
 import shutil
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
 from notebooklm_tools import __version__
 
 import typer
+import click
 from rich.console import Console
 from rich.table import Table
 
@@ -374,11 +375,12 @@ def install(
         help="Tool to install skill for (claude-code, cursor, agents, opencode, antigravity, other)",
         shell_complete=complete_tool_name,
     ),
-    level: Literal["user", "project"] = typer.Option(
+    level: str = typer.Option(
         "user",
         "--level",
         "-l",
         help="Install at user level (~/.config) or project level (./)",
+        click_type=click.Choice(["user", "project"]),
     ),
 ) -> None:
     """
@@ -491,11 +493,12 @@ def uninstall(
         help="Tool to uninstall skill from",
         shell_complete=complete_tool_name,
     ),
-    level: Literal["user", "project"] = typer.Option(
+    level: str = typer.Option(
         "user",
         "--level",
         "-l",
         help="Uninstall from user or project level",
+        click_type=click.Choice(["user", "project"]),
     ),
 ) -> None:
     """

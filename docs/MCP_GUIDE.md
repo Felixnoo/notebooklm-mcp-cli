@@ -74,8 +74,18 @@ source_add(
 
 | Tool | Description |
 |------|-------------|
-| `notebook_query` | Ask AI about sources in notebook |
+| `notebook_query` | Ask AI about sources in notebook (automatically uses configured default notebook ID) |
 | `chat_configure` | Set chat goal and response length |
+
+### Query Optimization
+
+**Important:** When using AI tools with NotebookLM MCP, follow these best practices:
+
+- **Always use `notebook_query(notebook_id="自动获取的NotebookLM ID", query="your question")`** - explicitly pass the automatically obtained notebook ID
+- **Do NOT use `cross_notebook_query`** unless you specifically need to query multiple notebooks
+- **Do NOT use `notebook_list` before every query** - it's unnecessary and slows down responses
+
+The `notebook_query` tool should be used with the notebook_id parameter explicitly set to the automatically obtained notebook ID. This ensures consistent and reliable query behavior across AI tools.
 
 ### Studio Content (4 tools)
 

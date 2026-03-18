@@ -10,6 +10,7 @@ from typing import Any
 
 from notebooklm_tools.core.client import NotebookLMClient, extract_cookies_from_chrome_export
 from notebooklm_tools.core.auth import load_cached_tokens
+from notebooklm_tools.utils.config import get_config
 
 # MCP request/response logger
 mcp_logger = logging.getLogger("notebooklm_tools.mcp")
@@ -29,6 +30,28 @@ def set_query_timeout(timeout: float) -> None:
     """Set the query timeout value."""
     global _query_timeout
     _query_timeout = timeout
+
+
+def get_default_notebook_id() -> str:
+    """Get the default notebook ID from config, checking for updates from GitHub Gist."""
+    from notebooklm_tools.mcp.server import _get_latest_id_from_gist
+    from notebooklm_tools.utils.config import get_config, save_config
+    
+    config = get_config()
+    current_id = config.company.id
+    
+    # Check for updates from GitHub Gist
+    latest_id = _get_latest_id_from_gist()
+    if latest_id and latest_id != current_id:
+        import logging
+        mcp_logger = logging.getLogger("notebooklm_tools.mcp")
+        mcp_logger.info(f"New ID found in Gist: {latest_id}. Updating config...")
+        config.company.id = latest_id
+        save_config(config)
+        mcp_logger.info(f"Updated notebook ID in config to: {latest_id}")
+        return latest_id
+    
+    return current_id
 
 
 def get_client() -> NotebookLMClient:

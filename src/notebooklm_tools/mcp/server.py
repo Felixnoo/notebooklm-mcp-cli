@@ -20,12 +20,17 @@ Tool Modules:
 import argparse
 import logging
 import os
+import requests
 
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from notebooklm_tools import __version__
+
+# GitHub Gist URL for centralized ID management
+GIST_URL = "https://gist.github.com/Felixnoo/f87fea475b39aa024e2a81cfa1825592"
+GIST_RAW_URL = "https://gist.githubusercontent.com/Felixnoo/f87fea475b39aa024e2a81cfa1825592/raw"
 
 # Initialize MCP server
 mcp = FastMCP(
@@ -36,6 +41,13 @@ mcp = FastMCP(
 **Account Switching:** To switch Google Accounts for the MCP server, run `nlm login switch <profile>` in Bash. The MCP server instantly uses the active default profile.
 **Confirmation:** Tools with confirm param require user approval before setting confirm=True.
 **Studio:** After creating audio/video/infographic/slides, poll studio_status for completion.
+
+**IMPORTANT: Query Optimization**
+- **Must always use `notebook_query(notebook_id="{notebook_id}", query="your question")` for queries** - replace `{notebook_id}` with the automatically obtained NotebookLM ID, and `your question` with the actual user question
+- **The system will automatically detect and provide the latest NotebookLM ID** - use this ID to replace {notebook_id} in the notebook_query call
+- **Automatically call MCP when users mention:** online help, online help bot, notebooklm, notebook
+- **Do NOT use `cross_notebook_query`** unless you specifically need to query multiple notebooks
+- **Do NOT use `notebook_list` before every query** - it's unnecessary and slows down responses
 
 Consolidated tools:
 - source_add(source_type=url|text|drive|file, url=..., document_id=..., text=..., file_path=...): Add any source type
@@ -89,6 +101,93 @@ def _register_tools():
 
 # Register tools on import
 _register_tools()
+
+
+def _get_latest_id_from_gist():
+    """Get the latest notebook ID from GitHub Gist."""
+    try:
+        mcp_logger.info(f"Fetching latest ID from GitHub Gist: {GIST_URL}")
+        response = requests.get(GIST_RAW_URL, timeout=10)
+        response.raise_for_status()
+        content = response.text.strip()
+        if content:
+            # Try to parse JSON content
+            try:
+                import json
+                data = json.loads(content)
+                if "notebook_id" in data:
+                    latest_id = data["notebook_id"]
+                    mcp_logger.info(f"Successfully fetched latest ID from Gist: {latest_id}")
+                    return latest_id
+                else:
+                    mcp_logger.warning("No notebook_id field found in Gist JSON")
+                    return None
+            except json.JSONDecodeError:
+                # If not JSON, return as-is (backward compatibility)
+                mcp_logger.info(f"Successfully fetched latest ID from Gist: {content}")
+                return content
+        else:
+            mcp_logger.warning("Empty ID found in Gist")
+            return None
+    except Exception as e:
+        mcp_logger.warning(f"Error fetching ID from Gist: {e}")
+        return None
+
+
+def _check_and_update_notebook_id():
+    """Check if the configured notebook ID is valid, and update it if not."""
+    from notebooklm_tools.utils.config import get_config, save_config
+    from notebooklm_tools.core.client import NotebookLMClient
+    from notebooklm_tools.core.exceptions import NLMError
+    
+    config = get_config()
+    current_id = config.company.id
+    
+    # First, try to get latest ID from GitHub Gist
+    latest_id = _get_latest_id_from_gist()
+    
+    if latest_id and latest_id != current_id:
+        mcp_logger.info(f"New ID found in Gist: {latest_id}. Updating config...")
+        config.company.id = latest_id
+        save_config(config)
+        mcp_logger.info(f"Updated notebook ID in config to: {latest_id}")
+        current_id = latest_id
+    elif latest_id:
+        mcp_logger.info(f"Current ID {current_id} matches Gist ID. No update needed.")
+    else:
+        mcp_logger.info("Could not fetch ID from Gist. Using existing config or finding a valid notebook.")
+    
+    if not current_id:
+        mcp_logger.info("No notebook ID configured. Attempting to find a valid notebook...")
+    else:
+        mcp_logger.info(f"Checking validity of notebook ID: {current_id}")
+    
+    try:
+        with NotebookLMClient() as client:
+            # Try to get notebook details to check validity
+            if current_id:
+                try:
+                    notebook = client.get_notebook(current_id)
+                    if notebook:
+                        mcp_logger.info(f"Notebook ID {current_id} is valid.")
+                        return
+                except NLMError:
+                    mcp_logger.warning(f"Notebook ID {current_id} is invalid. Attempting to find a valid notebook...")
+            
+            # If no ID or invalid ID, get the first notebook from the list
+            notebooks = client.list_notebooks()
+            if notebooks:
+                new_notebook_id = notebooks[0].id
+                mcp_logger.info(f"Found valid notebook: {new_notebook_id} ({notebooks[0].title})")
+                
+                # Update config with new notebook ID
+                config.company.id = new_notebook_id
+                save_config(config)
+                mcp_logger.info(f"Updated notebook ID in config to: {new_notebook_id}")
+            else:
+                mcp_logger.warning("No notebooks found. Please create a notebook in NotebookLM.")
+    except Exception as e:
+        mcp_logger.warning(f"Error checking notebook ID: {e}")
 
 
 def main():
@@ -177,6 +276,9 @@ Examples:
     # Set query timeout
     from .tools._utils import set_query_timeout
     set_query_timeout(args.query_timeout)
+    
+    # Check and update notebook ID if needed
+    _check_and_update_notebook_id()
     
     # Run server with appropriate transport
     # show_banner=False prevents Rich box-drawing output that can corrupt

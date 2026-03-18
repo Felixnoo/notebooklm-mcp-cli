@@ -14,6 +14,30 @@ app = typer.Typer(
 )
 
 
+@app.command("set-company-id")
+def set_company_id(
+    notebook_id: str = typer.Argument(..., help="NotebookLM notebook ID to set as company default"),
+):
+    """Set the company's default NotebookLM notebook ID."""
+    config = get_config()
+    config.company.id = notebook_id
+    save_config(config)
+    console.print(f"[green]✓[/green] Set company notebook ID to: {notebook_id}")
+    console.print("This ID will be used by the MCP server and automatically updated if invalid.")
+
+
+@app.command("get-company-id")
+def get_company_id():
+    """Get the current company NotebookLM notebook ID."""
+    config = get_config()
+    notebook_id = config.company.id
+    if notebook_id:
+        console.print(f"Current company notebook ID: [cyan]{notebook_id}[/cyan]")
+    else:
+        console.print("[yellow]No company notebook ID set.[/yellow]")
+        console.print("The MCP server will automatically find a valid notebook on startup.")
+
+
 @app.command("show")
 def show_config(
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),

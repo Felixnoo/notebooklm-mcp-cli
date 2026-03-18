@@ -7,19 +7,18 @@ from ...services import notes as notes_service, ServiceError, ValidationError
 
 @logged_tool()
 def note(
-    notebook_id: str,
     action: str,
     note_id: str | None = None,
     content: str | None = None,
     title: str | None = None,
     confirm: bool = False,
+    notebook_id: str | None = None,
 ) -> dict[str, Any]:
     """Manage notes in a notebook. Unified tool for all note operations.
 
     Supports: create, list, update, delete
 
     Args:
-        notebook_id: Notebook UUID
         action: Operation to perform:
             - create: Create a new note
             - list: List all notes in notebook
@@ -29,15 +28,16 @@ def note(
         content: Note content (required for create, optional for update)
         title: Note title (optional for create/update)
         confirm: Must be True for delete action
+        notebook_id: Notebook UUID (default: uses saved default notebook ID)
 
     Returns:
         Action-specific response with status
 
     Example:
-        note(notebook_id="abc", action="list")
-        note(notebook_id="abc", action="create", content="My note", title="Title")
-        note(notebook_id="abc", action="update", note_id="xyz", content="Updated")
-        note(notebook_id="abc", action="delete", note_id="xyz", confirm=True)
+        note(action="list", notebook_id="abc")
+        note(action="create", content="My note", title="Title", notebook_id="abc")
+        note(action="update", note_id="xyz", content="Updated", notebook_id="abc")
+        note(action="delete", note_id="xyz", confirm=True, notebook_id="abc")
     """
     valid_actions = ("create", "list", "update", "delete")
 
@@ -49,6 +49,13 @@ def note(
 
     try:
         client = get_client()
+        
+        # Use default notebook ID if not provided
+        from ._utils import get_default_notebook_id
+        if not notebook_id:
+            notebook_id = get_default_notebook_id()
+            if not notebook_id:
+                return {"status": "error", "error": "No notebook ID provided and no default notebook ID configured. Use notebook_list to see available notebooks."}
 
         if action == "create":
             result = notes_service.create_note(client, notebook_id, content or "", title)
