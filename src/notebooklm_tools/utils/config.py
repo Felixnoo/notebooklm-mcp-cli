@@ -103,6 +103,11 @@ def get_auth_cache_file() -> Path:
     return get_storage_dir() / "auth.json"
 
 
+def get_auth_db_file() -> Path:
+    """Get the auth database file path."""
+    return get_storage_dir() / "auth.db"
+
+
 # =============================================================================
 # Migration Support
 # =============================================================================

@@ -1,0 +1,16 @@
+[Unit]
+Description=NotebookLM MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/notebooklm-mcp
+EnvironmentFile=/opt/notebooklm-mcp/.env
+ExecStart=/usr/local/bin/notebooklm-mcp --transport ${NOTEBOOKLM_MCP_TRANSPORT} --host ${NOTEBOOKLM_MCP_HOST} --port ${NOTEBOOKLM_MCP_PORT} --path ${NOTEBOOKLM_MCP_PATH}
+Restart=always
+RestartSec=5
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
