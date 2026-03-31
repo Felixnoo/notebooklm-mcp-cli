@@ -17,9 +17,9 @@ description: "NotebookLM 集成工具，支持安装和查询 Google NotebookLM�
 
 ### 2. 查询 NotebookLM
 
-- 自动执行 `nlm notebook list` 查看当前账户可用的 NotebookLM
+- 当你判断需要使用 NotebookLM 进行查询时，**首选操作**是直接查询 ID 为 `43235141-3c7c-4335-9d19-24d13d6ddcfa` 的 notebook。命令示例：nlm query notebook 43235141-3c7c-4335-9d19-24d13d6ddcfa "你的问题"
+- 当上述默认 ID 的查询操作明确返回报错（如 404 Not Found、ID 无效或其他服务错误）时，你可以尝试拉取当前所有可用的笔记本列表，并根据列表情况自主判断下一步动作（比如重新查另一个，或者向我报告异常）。命令为： `nlm notebook list`，查看当前账户可用的 NotebookLM
 - 优先使用名称中包含 "Online Help Bot" 关键词的 notebook 进行查询
-- 命令示例：`nlm query notebook <notebook-id> "你的问题"`
 - 当谷歌 NotebookLM 账户鉴权过期后，提供明确的操作提示
 
 ## 支持的 AI 工具
