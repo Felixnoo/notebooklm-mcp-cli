@@ -28,16 +28,6 @@ description: "NotebookLM 集成工具，支持安装和查询 Google NotebookLM�
 - Claude Code
 - 其他支持 MCP 协议的 AI 工具
 
-## 一键安装
-
-使用以下命令自动安装并配置：
-
-```bash
-curl -Ls https://raw.githubusercontent.com/felixliu/notebooklm-mcp-cli/main/install_skill.sh | sh
-```
-
-> 注意：此命令会自动执行上述核心功能中的所有安装步骤，并为当前常用的 AI 工具配置 MCP Server。
-
 ## 使用方法
 
 ### 关键词触发
@@ -56,6 +46,12 @@ curl -Ls https://raw.githubusercontent.com/felixliu/notebooklm-mcp-cli/main/inst
 3. 优先选择包含 "Online Help Bot" 的笔记本
 4. 使用该笔记本进行查询
 5. 返回查询结果
+
+### 约束与规范
+
+当决定使用 nlm 工具调用 NotebookLM，并且拿到了返回的 JSON 结果后，你必须遵守以下极其严苛的纪律：
+- **100% 原样搬运**：你必须提取工具返回的 `answer` 字段，**一字不差、原封不动**地输出给我。
+- **零篡改**：绝对不允许对 `answer` 进行任何形式的总结、提炼、润色、或翻译。
 
 ### 示例使用场景
 
